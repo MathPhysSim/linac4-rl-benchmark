@@ -4,7 +4,8 @@ Reinforcement Learning benchmark for autonomous beam steering on the **CERN Lina
 
 > **Associated Publication**
 >
-> S. Hirlaender and N. Bruchon, *"Sample-efficient reinforcement learning for CERN accelerator control,"*
+> V. Kain, S. Hirlaender, B. Goddard, F. M. Velotti, G. Zevi Della Porta, N. Bruchon, and G. Valentino,
+> *"Sample-efficient reinforcement learning for CERN accelerator control,"*
 > Physical Review Accelerators and Beams **23**, 124801 (2020).
 > [DOI: 10.1103/PhysRevAccelBeams.23.124801](https://doi.org/10.1103/PhysRevAccelBeams.23.124801)
 >
@@ -261,9 +262,9 @@ A subset of [OpenAI SpinningUp](https://github.com/openai/spinningup) bundled fo
 If you use this code or data in your research, please cite:
 
 ```bibtex
-@article{Hirlaender2020,
+@article{Kain2020,
   title     = {Sample-efficient reinforcement learning for {CERN} accelerator control},
-  author    = {Hirlaender, Simon and Bruchon, Niky},
+  author    = {Kain, Verena and Hirlaender, Simon and Goddard, Brennan and Velotti, Francesco Maria and {Zevi Della Porta}, Giovanni and Bruchon, Niky and Valentino, Gianluca},
   journal   = {Physical Review Accelerators and Beams},
   volume    = {23},
   number    = {12},
