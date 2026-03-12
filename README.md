@@ -2,6 +2,14 @@
 
 Reinforcement Learning benchmark for autonomous beam steering on the **CERN Linac4** transfer line, using measured response matrices from October 2019.
 
+> **Associated Publication**
+>
+> S. Hirlaender and N. Bruchon, *"Sample-efficient reinforcement learning for CERN accelerator control,"*
+> Physical Review Accelerators and Beams **23**, 124801 (2020).
+> [DOI: 10.1103/PhysRevAccelBeams.23.124801](https://doi.org/10.1103/PhysRevAccelBeams.23.124801)
+>
+> This repository contains the simulation tests and algorithm benchmarks presented in that paper.
+
 Horizontal plane | Vertical plane
 :---:|:---:
 ![Horizontal response matrix](Response_matrix_hor.png) | ![Vertical response matrix](Response_matrix_ver.png)
@@ -245,6 +253,26 @@ A subset of [OpenAI SpinningUp](https://github.com/openai/spinningup) bundled fo
 - **NAF implementation**: Based on [Taehoon Kim's naf-tensorflow](https://github.com/carpedm20/naf-tensorflow) (MIT License).
 - **SpinningUp**: Based on [OpenAI SpinningUp](https://github.com/openai/spinningup) (MIT License).
 - **Response matrix data**: Measured at CERN Linac4, October 2019.
+
+---
+
+## Citation
+
+If you use this code or data in your research, please cite:
+
+```bibtex
+@article{Hirlaender2020,
+  title     = {Sample-efficient reinforcement learning for {CERN} accelerator control},
+  author    = {Hirlaender, Simon and Bruchon, Niky},
+  journal   = {Physical Review Accelerators and Beams},
+  volume    = {23},
+  number    = {12},
+  pages     = {124801},
+  year      = {2020},
+  publisher = {American Physical Society},
+  doi       = {10.1103/PhysRevAccelBeams.23.124801}
+}
+```
 
 ---
 
