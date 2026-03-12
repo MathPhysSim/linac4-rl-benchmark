@@ -1,111 +1,154 @@
-import logging.config
-import random
+"""Linac4 beam-steering simulation environment.
+
+Implements a Gym environment that models the CERN Linac4 transfer-line
+beam-position correction problem using a measured response matrix.
+The agent controls corrector magnets (actions) to steer the beam
+positions (observations) towards a reference orbit.
+"""
+
+import logging
 
 import gym
 import numpy as np
-# 3rd party modules
-import math
-from enum import Enum
+import pandas as pd
 
 
 class simpleEnv(gym.Env):
-    """
-    Define a simple environment.
-    The environment defines which actions can be taken at which point and
-    when the agent receives which reward.
+    """Linac4 beam-steering environment with linear + non-linear dynamics.
+
+    The environment uses a measured 16x16 response matrix from the Linac4
+    transfer line to map corrector-magnet settings (actions) to beam-position
+    monitor readings (observations).  A small non-linear perturbation is
+    added to simulate realistic deviations from the linear model.
+
+    Parameters
+    ----------
+    **kwargs
+        Currently unused; reserved for future configuration.
+
+    Attributes
+    ----------
+    response_matrix : np.ndarray
+        Measured 16x16 response matrix (correctors -> BPMs).
+    reference_trajectory : np.ndarray
+        Target beam positions (all ones by default).
+    MAX_TIME : int
+        Maximum steps per episode before termination.
     """
 
     def __init__(self, **kwargs):
         self.__version__ = "0.0.1"
-        logging.info("simple_ENV - Version {}".format(self.__version__))
-        self.__name__ = "simple_ENV - Version {}".format(self.__version__)
-        # General variables defining the environment
+        logging.info("simple_ENV - Version %s", self.__version__)
+        self.__name__ = f"simple_ENV - Version {self.__version__}"
+
         self.is_finalized = False
         self.MAX_TIME = 25
         self.curr_step = -1
-
         self.curr_episode = -1
         self.TOTAL_COUNTER = -1
         self.action_episode_memory = []
         self.rewards = []
         self.initial_conditions = []
-
         self.counter = 0
+
         self.seed(123)
 
-        import pandas as pd
-        A = pd.read_pickle('linac4_rm.pcl').T
-        # print(A.T)
+        # Load the measured response matrix from Linac4
+        A = pd.read_pickle("linac4_rm.pcl").T
         A = A.iloc[:16, 1:17].values
 
         self.act_dimension = A.shape[0]
         self.obs_dimension = A.shape[1]
 
         self.MAX_POS = 1
-        self.action_space = gym.spaces.Box(low=-self.MAX_POS, high=self.MAX_POS, shape=(self.act_dimension,),
-                                           dtype=np.float32)
-        print('Action space dim is: ', self.action_space)
-
-        # Create observation space
-        self.MAX_POS = 1
-        self.observation_space = gym.spaces.Box(low=-self.MAX_POS, high=self.MAX_POS, shape=(self.obs_dimension,),
-                                                dtype=np.float32)
+        self.action_space = gym.spaces.Box(
+            low=-self.MAX_POS, high=self.MAX_POS,
+            shape=(self.act_dimension,), dtype=np.float32,
+        )
+        self.observation_space = gym.spaces.Box(
+            low=-self.MAX_POS, high=self.MAX_POS,
+            shape=(self.obs_dimension,), dtype=np.float32,
+        )
 
         self.reference_trajectory = np.ones(self.obs_dimension)
-        self.response_matrix = A  # np.eye(self.dimension) * np.random.randn(self.dimension)
-
-        print('State space dim is: ', self.observation_space)
-        # print(self.response_matrix)
-        self.non_linear_component = 0.01 * np.random.randn(self.response_matrix.shape[0],
-                                                           self.response_matrix.shape[1])
+        self.response_matrix = A
+        self.non_linear_component = 0.01 * np.random.randn(
+            self.response_matrix.shape[0], self.response_matrix.shape[1]
+        )
 
     def seed(self, seed):
+        """Set the random seed for reproducibility."""
         np.random.seed(seed)
 
     def step(self, action):
+        """Execute one step: apply corrector settings and observe BPM readings.
+
+        Parameters
+        ----------
+        action : np.ndarray
+            Corrector-magnet settings (dimension = ``act_dimension``).
+
+        Returns
+        -------
+        state : np.ndarray
+            Beam-position monitor readings.
+        reward : float
+            Negative RMS deviation from the reference trajectory.
+        done : bool
+            Whether the episode has terminated.
+        info : dict
+            Empty dict (for Gym API compatibility).
+        """
         self.curr_step += 1
         self.counter += 1
         state, reward = self._take_action(action)
         self.action_episode_memory[self.curr_episode].append(action)
         self.rewards[self.curr_episode].append(reward)
-        if reward < - 10 or reward > -.25 or self.curr_step > self.MAX_TIME:
+
+        if reward < -10 or reward > -0.25 or self.curr_step > self.MAX_TIME:
             self.is_finalized = True
 
-        # if self.is_finalized:
-        #     print('Finished at:\n', state, reward)
         return state, reward, self.is_finalized, {}
 
     def _take_action(self, action):
-        action = action
+        """Compute beam state from corrector settings via the response matrix.
+
+        The dynamics are: ``state = R @ action + action^T @ N @ action``,
+        where R is the response matrix with additive noise and N is a
+        small non-linear perturbation matrix.
+        """
         self.TOTAL_COUNTER += 1
-        state = np.dot(self.response_matrix + 0.01 * np.random.randn(self.response_matrix.shape[0],
-                                                                     self.response_matrix.shape[1]), action) \
-                + np.dot(action, np.dot(self.non_linear_component, action))
-        # state = state*2
-        reward = np.sqrt(np.mean(np.square(state - self.reference_trajectory)))
-        return state, -reward
+        noise = 0.01 * np.random.randn(*self.response_matrix.shape)
+        state = (
+            np.dot(self.response_matrix + noise, action)
+            + np.dot(action, np.dot(self.non_linear_component, action))
+        )
+        reward = -np.sqrt(np.mean(np.square(state - self.reference_trajectory)))
+        return state, reward
 
     def reset(self):
-        """
-        Reset the state of the environment and returns an initial observation.
+        """Reset the environment and return an initial observation.
+
+        The initial state is generated by applying a random corrector
+        setting (scaled by 5) to produce a displaced beam orbit.
+
         Returns
         -------
-        observation (object): the initial observation of the space.
+        init_state : np.ndarray
+            Initial beam-position monitor readings.
         """
-
         self.curr_episode += 1
         self.curr_step = 0
-
         self.action_episode_memory.append([])
         self.rewards.append([])
-
         self.is_finalized = False
-        init_state, init_reward = self._take_action(5 * np.random.randn(self.act_dimension))
+
+        init_state, _ = self._take_action(5 * np.random.randn(self.act_dimension))
         self.initial_conditions.append(init_state)
         return init_state
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     env = simpleEnv()
     print(env.reset())
     action = np.ones(env.action_space.shape)
